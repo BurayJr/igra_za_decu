@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spajanje brojeva i kartica</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(to bottom, #70a1ff, #ff6b81);
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-size: cover;
+    }
+
+    .container {
+    position: absolute;
+    top: calc(100px + 20px); /* Height of navbar + any additional spacing */
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    width: 90%;
+    max-width: 600px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+    .numbers, .cards {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .number, .card {
+        margin: 10px;
+    }
+
+    .number {
+        font-size: 48px;
+        font-weight: bold;
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .card {
+        width: 80px;
+        height: 80px;
+        border: 2px solid #333;
+        border-radius: 5px;
+        position: relative;
+    }
+
+    .card img {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 5px;
+        pointer-events: none;
+    }
+
+    .number-in-card {
+        font-size: 48px;
+        font-weight: bold;
+        cursor: pointer;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 0;
+        color: white;
+    }
+
+    .card.correct {
+        background-color: #b3ffb3;
+    }
+
+    #message {
+        margin-top: 20px;
+        font-weight: bold;
+        display: none;
+    }
+
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        background-color: #333;
+        overflow: hidden;
+        z-index: 1000;
+    }
+
+    .navbar a, .navbar button {
+        float: left;
+        display: block;
+        color: white;
+        text-align: center;
+        padding: 14px 20px;
+        text-decoration: none;
+        background-color: #333;
+        border: none;
+        cursor: pointer;
+    }
+
+    .navbar a:hover, .navbar button:hover {
+        background-color: #ddd;
+        color: black;
+    }
+
+    .leaderboard {
+    position: absolute;
+    top: calc(100px + 20px + 100vh + 20px); /* Height of navbar + any additional spacing + container height + any additional spacing */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+    .button {
+        display: inline-block;
+        padding: 10px 20px;
+        font-size: 16px;
+        font-weight: bold;
+        text-transform: uppercase;
+        color: #fff;
+        background-color: #ff6b81;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .button:hover {
+        background-color: #e85c78;
+    }
+
+    .button:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (min-width: 600px) {
+        .container {
+            flex-direction: row;
+        }
+        .numbers, .cards {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .number {
+            font-size: 72px;
+        }
+        .card {
+            width: 100px;
+            height: 100px;
+        }
+        .number-in-card {
+            font-size: 72px;
+        }
+    }
+</style>
+<script>
+    var games = JSON.parse(localStorage.getItem('games')) || [];
+    var correctCount = 0;
+    var startTime;
+
+    var initialState = {
+        "numbers": [],
+        "cards": []
+    };
+
+    function redirectToHomePage() {
+        window.location.href = "index.html"; // Replace "index.html" with your home page URL
+    }
+
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    function drag(ev) {
+        ev.dataTransfer.setData("text", ev.target.id);
+    }
+
+    function drop(ev) {
+    ev.preventDefault();
+    var data = ev.dataTransfer.getData("text");
+    var dropTarget = ev.target;
+    var dragElement = document.getElementById(data);
+    
+    if (dragElement.classList.contains('number')) {
+        dragElement.remove();
+        
+        if (dropTarget.classList.contains('card') && dropTarget.dataset.value === dragElement.innerHTML.trim()) {
+            var numberInCard = dropTarget.querySelector('.number-in-card');
+            if (numberInCard) {
+                numberInCard.remove();
+            }
+            var numberElement = document.createElement('div');
+            numberElement.classList.add('number-in-card');
+            numberElement.innerHTML = dragElement.innerHTML.trim();
+            dropTarget.appendChild(numberElement);
+            dropTarget.classList.add('correct');
+            correctCount++;
+            playCorrectSound();
+        } else {
+            playIncorrectSound();
+        }
+
+        // Check game completion after the drop operation
+       // checkGameCompletion();
+    } else if (dragElement.classList.contains('number-in-card')) {
+        if (dropTarget.classList.contains('card') && !dropTarget.querySelector('.number-in-card')) {
+            var clonedNumber = dragElement.cloneNode(true);
+            dropTarget.appendChild(clonedNumber);
+            dragElement.remove();
+        }
+    }
+
+    // Update the remaining numbers count after each drop
+    var remainingNumbers = document.querySelectorAll('.numbers .number');
+    if (remainingNumbers.length === 0) {
+        // If no remaining numbers, end the game
+        checkGameCompletion();
+    }
+}
+
+    function playIncorrectSound() {
+        var audio = document.getElementById("incorrectSound");
+        audio.play();
+    }
+
+    function playCorrectSound() {
+        var audio = document.getElementById("correctSound");
+        audio.play();
+    }
+
+    function checkGameCompletion() {
+    var endTime = new Date();
+    var timeTaken = formatTime(endTime - startTime);
+    var username = localStorage.getItem('username') || 'Anonymous';
+    games.push({ username: username, correctCount: correctCount, time: timeTaken });
+
+    // Get the remaining numbers
+    var remainingNumbers = document.querySelectorAll('.number');
+    
+
+    // Check if all numbers have been placed correctly
+    if (correctCount === 9) {
+        alert("Bravo! Trebalo vam je " + timeTaken + ".");
+        restartGame();
+    } else if (remainingNumbers.length === 0) {
+        alert("Izgubili ste, trebalo vam je " + timeTaken + "!");
+        restartGame();
+    }
+
+    updateLeaderboard();
+}
+
+
+    function restartGame() {
+        var numbersContainer = document.querySelector('.numbers');
+        var cardsContainer = document.querySelector('.cards');
+
+        numbersContainer.innerHTML = '';
+        cardsContainer.innerHTML = '';
+
+        var jsonGameState = JSON.parse(localStorage.getItem('initialGameState'));
+        if (jsonGameState) {
+            numbersContainer.innerHTML = jsonGameState.numbers;
+            cardsContainer.innerHTML = jsonGameState.cards;
+        }
+
+        correctCount = 0;
+        startTime = new Date();
+
+        shuffleElements(numbersContainer);
+        shuffleElements(cardsContainer);
+    }
+
+    function formatTime(milliseconds) {
+        var minutes = Math.floor(milliseconds / (1000 * 60));
+        var seconds = Math.floor((milliseconds % (1000 * 60)) / 1000);
+        return minutes + " minuta i " + seconds + " sekundi";
+    }
+
+    function shuffleElements(parentElement) {
+        var elementsArray = Array.from(parentElement.children);
+        elementsArray.sort(() => Math.random() - 0.5);
+        parentElement.innerHTML = '';
+        elementsArray.forEach(function(element) {
+            parentElement.appendChild(element);
+        });
+    }
+
+    function promptForUsername() {
+        var username = prompt("Unesite vaše ime:");
+        if (username) {
+            localStorage.setItem('username', username);
+        } else {
+            localStorage.setItem('username', 'Anonymous');
+        }
+    }
+
+    window.onload = function() {
+        promptForUsername();
+
+        alert("Spojite brojeve i količinu leptira sa slike da se slažu jedni s drugima!");
+        
+        startTime = new Date();
+        var numbersContainer = document.querySelector('.numbers');
+        var cardsContainer = document.querySelector('.cards');
+
+        var jsonGameState = JSON.parse(localStorage.getItem('initialGameState'));
+        if (jsonGameState) {
+            numbersContainer.innerHTML = jsonGameState.numbers;
+            cardsContainer.innerHTML = jsonGameState.cards;
+        } else {
+            shuffleElements(numbersContainer);
+            shuffleElements(cardsContainer);
+            saveInitialState();
+        }
+        shuffleElements(numbersContainer);
+        shuffleElements(cardsContainer);
+
+        // Load games array from local storage
+        var storedGames = localStorage.getItem('games');
+        if (storedGames) {
+            games = JSON.parse(storedGames);
+        }
+
+        updateLeaderboard();
+    };
+
+    function updateLeaderboard() {
+        var leaderboard = document.getElementById('leaderboardList');
+        leaderboard.innerHTML = '';
+        games.forEach(function(game, index) {
+            var listItem = document.createElement('li');
+            listItem.textContent = (index + 1) + ". " + game.username + " - " + game.correctCount + " tačnih (" + game.time + ")";
+            leaderboard.appendChild(listItem);
+        });
+
+        // Save games array to local storage
+        localStorage.setItem('games', JSON.stringify(games));
+    }
+
+    function saveInitialState() {
+        var numbersContainer = document.querySelector('.numbers');
+        var cardsContainer = document.querySelector('.cards');
+
+        initialState.numbers = numbersContainer.innerHTML;
+        initialState.cards = cardsContainer.innerHTML;
+        localStorage.setItem('initialGameState', JSON.stringify(initialState));
+    }
+</script>
+</head>
+<body>
+    <audio id="incorrectSound">
+        <source src="sound/inccorect.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <audio id="correctSound">
+        <source src="sound/correct.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <div class="navbar">
+        <button class="back-to-home-btn" onclick="redirectToHomePage()">Nazad na početnu stranicu</button>
+        <button onclick="restartGame()" class="button">Ponovi igru</button>
+    </div>
+
+    <div class="container">
+        <div class="numbers">
+            <div id="drag1" class="number" draggable="true" ondragstart="drag(event)">1</div>
+            <div id="drag2" class="number" draggable="true" ondragstart="drag(event)">2</div>
+            <div id="drag3" class="number" draggable="true" ondragstart="drag(event)">3</div>
+            <div id="drag4" class="number" draggable="true" ondragstart="drag(event)">4</div>
+            <div id="drag5" class="number" draggable="true" ondragstart="drag(event)">5</div>
+            <div id="drag6" class="number" draggable="true" ondragstart="drag(event)">6</div>
+            <div id="drag7" class="number" draggable="true" ondragstart="drag(event)">7</div>
+            <div id="drag8" class="number" draggable="true" ondragstart="drag(event)">8</div>
+            <div id="drag9" class="number" draggable="true" ondragstart="drag(event)">9</div>
+        </div>
+        <div class="cards">
+            <div id="drop1" class="card" data-value="1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="one.png" alt="Image 1">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop2" class="card" data-value="2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="two.png" alt="Image 2">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop3" class="card" data-value="3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="three.png" alt="Image 3">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop4" class="card" data-value="4" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="four.png" alt="Image 4">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop5" class="card" data-value="5" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="five.png" alt="Image 5">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop6" class="card" data-value="6" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="six.png" alt="Image 6">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop7" class="card" data-value="7" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="seven.png" alt="Image 7">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop8" class="card" data-value="8" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="eight.png" alt="Image 8">
+                <div class="number-in-card"></div>
+            </div>
+            <div id="drop9" class="card" data-value="9" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <img src="nine.png" alt="Image 9">
+                <div class="number-in-card"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="leaderboard">
+        <h2>Leaderboard</h2>
+        <ul id="leaderboardList"></ul>
+    </div>
+</body>
+</html>
